@@ -6,7 +6,7 @@
 
 class Ray : public sf::Drawable {
 public:
-  Ray(sf::Vector2f origin) : origin(origin) {
+  Ray(sf::Vector2f origin, size_t maxMarches) : origin(origin), maxMarches(maxMarches) {
     circleBase.setFillColor({30, 30, 30, 40});
     circleBase.setOutlineThickness(2.f);
     circleBase.setOutlineColor({90, 90, 90, 255});
@@ -29,9 +29,10 @@ public:
   void march(const std::vector<sf::RectangleShape>& rects, const std::vector<sf::CircleShape>& circles) {
     sf::Vector2f currentOrigin = origin;
     float currentLength = 0.f;
-    float dstToScene = length;
 
-    for (size_t i = 0; dstToScene > 1.f && currentLength < length; i++) {
+    for (size_t i = 0; currentLength < length && i < maxMarches; i++) {
+      float dstToScene = length;
+
       for (const sf::RectangleShape& rect : rects) {
         sf::Vector2f sizeFromCenter = rect.getGeometricCenter();
         sf::Vector2f centerGlobal = rect.getPosition() + sizeFromCenter;
@@ -66,6 +67,8 @@ public:
 
 private:
   sf::Vector2f origin;
+  size_t maxMarches;
+
   sf::Vector2f direction;
   float length;
 

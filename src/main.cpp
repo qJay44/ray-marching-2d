@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <vector>
+#include <format>
 
 #include "Ray.hpp"
 
@@ -47,10 +48,13 @@ int main() {
     }
   };
 
-  Ray ray{sf::Vector2f{20.f, 20.f}};
+  Ray ray(sf::Vector2f{20.f, 20.f}, 250);
 
   generateShapes();
 
+  sf::Clock clock;
+  float titleTime = 0.f;
+  float dt;
   while (window.isOpen()) {
     while (const std::optional event = window.pollEvent()) {
       if (event->is<sf::Event::Closed>()) {
@@ -67,6 +71,15 @@ int main() {
             break;
         };
       }
+    }
+
+    dt = clock.restart().asSeconds();
+
+    if (titleTime > 0.3f) {
+      window.setTitle(std::format("FPS: {}, {:.5f} ms", static_cast<int>(1.f / dt), dt));
+      titleTime = 0.f;
+    } else {
+      titleTime += dt;
     }
 
     ray.update(sf::Mouse::getPosition(window));
