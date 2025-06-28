@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <vector>
 #include <format>
+#include <direct.h>
 
 #include "Ray.hpp"
 
@@ -17,6 +18,9 @@ sf::Color randColor() {
 }
 
 int main() {
+  // Assuming the executable is launching from its own directory
+  _chdir("../../../src");
+
   srand(static_cast<unsigned int>(time(nullptr)));
   sf::RenderWindow window = sf::RenderWindow(sf::VideoMode({WIDTH, HEIGHT}), "CMake SFML Project");
   window.setFramerateLimit(144);
@@ -49,6 +53,7 @@ int main() {
   };
 
   Ray ray(sf::Vector2f{20.f, 20.f}, 250);
+  bool showShapes = true;
 
   generateShapes();
 
@@ -67,6 +72,15 @@ int main() {
           case sf::Keyboard::Scancode::R:
             generateShapes();
             break;
+          case sf::Keyboard::Scancode::S:
+            showShapes = !showShapes;
+            break;
+          case sf::Keyboard::Scancode::Num1:
+            ray.setMode(0);
+            break;
+          case sf::Keyboard::Scancode::Num2:
+            ray.setMode(1);
+            break;
           default:
             break;
         };
@@ -83,12 +97,14 @@ int main() {
     }
 
     ray.update(sf::Mouse::getPosition(window));
-    ray.march(rects, circles);
+    ray.march(circles, rects);
 
     window.clear({10, 10, 10, 255});
 
-    for (const sf::RectangleShape& rect : rects) window.draw(rect);
-    for (const sf::CircleShape& circle : circles) window.draw(circle);
+    if (showShapes) {
+      for (const sf::RectangleShape& rect : rects) window.draw(rect);
+      for (const sf::CircleShape& circle : circles) window.draw(circle);
+    }
 
     window.draw(ray);
 

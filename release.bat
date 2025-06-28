@@ -2,7 +2,7 @@
 cls
 
 Rem Build
-if not exist Build mkdir Build\Release\Run
+if not exist Build\Release\Run mkdir Build\Release\Run
 cd Build\Release
 cmake.exe -S ..\..\ -B . -G"MinGW Makefiles" -D CMAKE_EXPORT_COMPILE_COMMANDS=ON -D CMAKE_BUILD_TYPE=Release
 cmake --build .
