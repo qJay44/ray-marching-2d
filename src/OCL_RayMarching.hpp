@@ -11,7 +11,7 @@ public:
   void updateCirclesBuffer(const std::vector<sf::CircleShape>& circles);
   void updateRectsBuffer(const std::vector<sf::RectangleShape>& rects);
 
-  void run();
+  void run(float k);
 
   [[nodiscard]]
   const u8* getPixels() const;
@@ -23,10 +23,12 @@ private:
 
   cl_float2* hostCirclesCenters = nullptr;
   cl_float* hostCirclesRadii = nullptr;
+  cl_float3* hostCirclesColors = nullptr;
   int numCircles = 0;
 
   cl_float2* hostRectsCenters = nullptr;
   cl_float2* hostRectsSizesFromCenters = nullptr;
+  cl_float3* hostRectsColors = nullptr;
   int numRects = 0;
 
   cl_device_id device = nullptr;
@@ -40,9 +42,11 @@ private:
 
   cl_mem gpuCirclesCenters = nullptr;
   cl_mem gpuCirclesRadii = nullptr;
+  cl_mem gpuCirclesColors = nullptr;
 
   cl_mem gpuRectsCenters = nullptr;
   cl_mem gpuRectsSizesFromCenters = nullptr;
+  cl_mem gpuRectsColors = nullptr;
 
   cl_kernel kernel;
   cl_program program;

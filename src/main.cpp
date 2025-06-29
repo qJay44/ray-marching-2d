@@ -1,21 +1,10 @@
 #include <cstdlib>
-#include <vector>
 #include <format>
 #include <direct.h>
 
 #include "Ray.hpp"
-
-int randBetween(int min, int max) {
-  return rand() % (max - min + 1) + min;
-}
-
-sf::Vector2f randPos() {
-  return sf::Vector2f(rand() % WIDTH, rand() % HEIGHT);
-}
-
-sf::Color randColor() {
-  return sf::Color(rand() % 256, rand() % 256, rand() % 256);
-}
+#include "ShapeContainer.hpp"
+#include "utils/utils.hpp"
 
 int main() {
   // Assuming the executable is launching from its own directory
@@ -25,39 +14,23 @@ int main() {
   sf::RenderWindow window = sf::RenderWindow(sf::VideoMode({WIDTH, HEIGHT}), "CMake SFML Project");
   window.setFramerateLimit(144);
 
-  std::vector<sf::RectangleShape> rects;
-  std::vector<sf::CircleShape> circles;
+  std::string fontPath = "fonts/monocraft/Monocraft.ttf";
+  sf::Font font;
+  if (!font.openFromFile(fontPath))
+    error("Can't open font []", fontPath);
 
-  const auto generateShapes = [&rects, &circles]() {
-    rects.clear();
-    for (size_t i = 0; i < 5; i++) {
-      sf::Vector2f size(randBetween(10, 50), randBetween(10, 50));
-      sf::Vector2f pos = randPos();
-      sf::RectangleShape rect(size);
-      rect.setPosition(pos);
-      rect.setFillColor(randColor());
-      rects.push_back(rect);
-    }
 
-    circles.clear();
-    for (size_t i = 0; i < 5; i++) {
-      float radius = randBetween(10, 50);
-      sf::Vector2f pos = randPos();
-      sf::CircleShape circle(100);
-      circle.setRadius(radius);
-      circle.setOrigin({radius, radius});
-      circle.setPosition(pos);
-      circle.setFillColor(randColor());
-      circles.push_back(circle);
-    }
-  };
+  ShapeContainer shaperContainer;
+  shaperContainer.generate();
 
   Ray ray(sf::Vector2f{20.f, 20.f}, 250);
-  bool showShapes = true;
-
-  generateShapes();
+  float k = 0.2f;
 
   sf::Clock clock;
+  sf::Vector2f mousePos;
+  sf::Text textK(font, std::format("{:.2f}", k), 20);
+  textK.setOutlineThickness(1.f);
+  textK.setOutlineColor(sf::Color::Black);
   float titleTime = 0.f;
   float dt;
   while (window.isOpen()) {
@@ -70,10 +43,10 @@ int main() {
             window.close();
             break;
           case sf::Keyboard::Scancode::R:
-            generateShapes();
+            shaperContainer.generate();
             break;
           case sf::Keyboard::Scancode::S:
-            showShapes = !showShapes;
+            shaperContainer.showShapes = !shaperContainer.showShapes;
             break;
           case sf::Keyboard::Scancode::Num1:
             ray.setMode(0);
@@ -84,10 +57,19 @@ int main() {
           default:
             break;
         };
+      } else if (const auto* scrolled = event->getIf<sf::Event::MouseWheelScrolled>()) {
+        k += scrolled->delta;
+        textK.setString(std::format("{:.2f}", k));
       }
     }
 
     dt = clock.restart().asSeconds();
+    mousePos = sf::Vector2f(sf::Mouse::getPosition(window));
+
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
+      shaperContainer.update(mousePos, true);
+    else
+      shaperContainer.update(mousePos, false);
 
     if (titleTime > 0.3f) {
       window.setTitle(std::format("FPS: {}, {:.5f} ms", static_cast<int>(1.f / dt), dt));
@@ -96,17 +78,14 @@ int main() {
       titleTime += dt;
     }
 
-    ray.update(sf::Mouse::getPosition(window));
-    ray.march(circles, rects);
+    ray.update(mousePos);
+    ray.march(shaperContainer, k);
 
     window.clear({10, 10, 10, 255});
 
-    if (showShapes) {
-      for (const sf::RectangleShape& rect : rects) window.draw(rect);
-      for (const sf::CircleShape& circle : circles) window.draw(circle);
-    }
-
     window.draw(ray);
+    window.draw(shaperContainer);
+    window.draw(textK);
 
     window.display();
   }

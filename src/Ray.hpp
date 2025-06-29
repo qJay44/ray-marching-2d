@@ -1,9 +1,9 @@
 #pragma once
 
 #include <list>
-#include <vector>
 
 #include "OCL_RayMarching.hpp"
+#include "ShapeContainer.hpp"
 
 class Ray : public sf::Drawable {
 public:
@@ -11,8 +11,8 @@ public:
 
   void setMode(int mode);
 
-  void update(const sf::Vector2i& mousePos);
-  void march(const std::vector<sf::CircleShape>& circles, const std::vector<sf::RectangleShape>& rects);
+  void update(const sf::Vector2f& mousePos);
+  void march(const ShapeContainer& shapeContainer, float k);
   void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
 
 private:
@@ -20,6 +20,7 @@ private:
   size_t maxMarches;
   int mode;
   OCL_RayMarching ocl;
+  sf::Texture oclTexture;
 
   sf::Vector2f direction;
   float length;
@@ -27,8 +28,6 @@ private:
   sf::CircleShape circleBase;
   sf::VertexArray line{sf::PrimitiveType::Lines, 2};
   std::list<sf::CircleShape> rayCircles;
-
-  sf::Texture oclTexture;
 
 private:
   float signedDstToCircle(const sf::Vector2f& p, const sf::Vector2f& center, float r) const;

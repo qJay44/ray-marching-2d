@@ -2,9 +2,10 @@
 #include "utils/utils.hpp"
 
 #include <algorithm>
+#include <cstdio>
 
 Ray::Ray(sf::Vector2f origin, size_t maxMarches, int mode)
-  : origin(origin), maxMarches(maxMarches), mode(mode), ocl(WIDTH, HEIGHT) {
+  : origin(origin), maxMarches(maxMarches), mode(mode), ocl(WIDTH, HEIGHT), oclTexture({WIDTH, HEIGHT}) {
   circleBase.setFillColor({30, 30, 30, 40});
   circleBase.setOutlineThickness(2.f);
   circleBase.setOutlineColor({90, 90, 90, 255});
@@ -18,8 +19,8 @@ void Ray::setMode(int mode) {
   this->mode = mode;
 }
 
-void Ray::update(const sf::Vector2i& mousePos) {
-  sf::Vector2f v = (sf::Vector2f(mousePos) - origin);
+void Ray::update(const sf::Vector2f& mousePos) {
+  sf::Vector2f v = mousePos - origin;
   length = v.length();
   direction = v / length;
 
@@ -28,7 +29,7 @@ void Ray::update(const sf::Vector2i& mousePos) {
   rayCircles.clear();
 }
 
-void Ray::march(const std::vector<sf::CircleShape>& circles, const std::vector<sf::RectangleShape>& rects) {
+void Ray::march(const ShapeContainer& shapeContainer, float k) {
   switch (mode) {
     case 0: {
       sf::Vector2f currentOrigin = origin;
@@ -37,12 +38,12 @@ void Ray::march(const std::vector<sf::CircleShape>& circles, const std::vector<s
       for (size_t i = 0; currentLength < length && i < maxMarches; i++) {
         float dstToScene = length;
 
-        for (const sf::CircleShape& circle : circles) {
+        for (const sf::CircleShape& circle : shapeContainer.circles) {
           sf::Vector2f center = circle.getPosition();
           dstToScene = std::min(dstToScene, signedDstToCircle(currentOrigin, center, circle.getRadius()));
         }
 
-        for (const sf::RectangleShape& rect : rects) {
+        for (const sf::RectangleShape& rect : shapeContainer.rects) {
           sf::Vector2f sizeFromCenter = rect.getGeometricCenter();
           sf::Vector2f centerGlobal = rect.getPosition() + sizeFromCenter;
           dstToScene = std::min(dstToScene, signedDstToRectangle(currentOrigin, centerGlobal, sizeFromCenter));
@@ -62,9 +63,9 @@ void Ray::march(const std::vector<sf::CircleShape>& circles, const std::vector<s
       break;
     }
     case 1: {
-      ocl.updateCirclesBuffer(circles);
-      ocl.updateRectsBuffer(rects);
-      ocl.run();
+      ocl.updateCirclesBuffer(shapeContainer.circles);
+      ocl.updateRectsBuffer(shapeContainer.rects);
+      ocl.run(k);
       oclTexture.update(ocl.getPixels());
       break;
     }

@@ -100,7 +100,7 @@ OCL_RayMarching::OCL_RayMarching(size_t width, size_t height)
 
   cl_image_format format;
   format.image_channel_order = CL_RGBA;
-  format.image_channel_data_type = CL_FLOAT;
+  format.image_channel_data_type = CL_UNORM_INT8;
 
   cl_int gpuImageMallocResult;
   #ifdef CL_VERSION_1_2
@@ -165,11 +165,20 @@ void OCL_RayMarching::updateCirclesBuffer(const std::vector<sf::CircleShape>& ci
 
   for (int i = 0; i < numCircles; i++) {
     sf::Vector2f pos = circles[i].getPosition();
+    sf::Color col = circles[i].getFillColor();
     cl_float2 clPos;
+    cl_float3 clCol;
+
     clPos.x = pos.x;
     clPos.y = pos.y;
+
+    clCol.x = col.r / 255.f;
+    clCol.y = col.g / 255.f;
+    clCol.z = col.b / 255.f;
+
     hostCirclesCenters[i] = clPos;
     hostCirclesRadii[i] = circles[i].getRadius();
+    hostCirclesColors[i] = clCol;
   }
 
   [[maybe_unused]]
@@ -177,6 +186,9 @@ void OCL_RayMarching::updateCirclesBuffer(const std::vector<sf::CircleShape>& ci
   assert(hostCopyResult == CL_SUCCESS);
 
   hostCopyResult = clEnqueueWriteBuffer(commandQueue, gpuCirclesRadii, CL_TRUE, 0, sizeof(cl_float) * numCircles, hostCirclesRadii, 0, nullptr, nullptr);
+  assert(hostCopyResult == CL_SUCCESS);
+
+  hostCopyResult = clEnqueueWriteBuffer(commandQueue, gpuCirclesColors, CL_TRUE, 0, sizeof(cl_float3) * numCircles, hostCirclesColors, 0, nullptr, nullptr);
   assert(hostCopyResult == CL_SUCCESS);
 }
 
@@ -188,17 +200,24 @@ void OCL_RayMarching::updateRectsBuffer(const std::vector<sf::RectangleShape>& r
   for (int i = 0; i < numRects; i++) {
     cl_float2 clSizeFromCenter;
     cl_float2 clCenterGlobal;
+    cl_float3 clCol;
     sf::Vector2f sizeFromCenter = rects[i].getGeometricCenter();
     sf::Vector2f centerGlobal = rects[i].getPosition() + sizeFromCenter;
-
-    clSizeFromCenter.x = sizeFromCenter.x;
-    clSizeFromCenter.y = sizeFromCenter.y;
+    sf::Color col = rects[i].getFillColor();
 
     clCenterGlobal.x = centerGlobal.x;
     clCenterGlobal.y = centerGlobal.y;
 
+    clSizeFromCenter.x = sizeFromCenter.x;
+    clSizeFromCenter.y = sizeFromCenter.y;
+
+    clCol.x = col.r / 255.f;
+    clCol.y = col.g / 255.f;
+    clCol.z = col.b / 255.f;
+
     hostRectsCenters[i] = clCenterGlobal;
     hostRectsSizesFromCenters[i] = clSizeFromCenter;
+    hostRectsColors[i] = clCol;
   }
 
   [[maybe_unused]]
@@ -207,29 +226,35 @@ void OCL_RayMarching::updateRectsBuffer(const std::vector<sf::RectangleShape>& r
 
   hostCopyResult = clEnqueueWriteBuffer(commandQueue, gpuRectsSizesFromCenters, CL_TRUE, 0, sizeof(cl_float2) * numRects, hostRectsSizesFromCenters, 0, nullptr, nullptr);
   assert(hostCopyResult == CL_SUCCESS);
+
+  hostCopyResult = clEnqueueWriteBuffer(commandQueue, gpuRectsColors, CL_TRUE, 0, sizeof(cl_float3) * numRects, hostRectsColors, 0, nullptr, nullptr);
+  assert(hostCopyResult == CL_SUCCESS);
 }
 
-void OCL_RayMarching::run() {
+void OCL_RayMarching::run(float k) {
   constexpr size_t origin[3] = {0, 0, 0};
   const size_t region[3] = {width, height, 1};
 
-  const size_t numGroups = (imageSize + maxLocalSize - 1) / maxLocalSize;
-  const size_t globalWorkSize = numGroups * maxLocalSize;
-  const size_t localWorkSize = maxLocalSize;
+  const size_t globalWorkSize[2] = {width, height};
+  const size_t localWorkSize[2] = {16, 16};
 
   [[maybe_unused]]
   cl_int errCode;
 
   errCode = clSetKernelArg(kernel, 1, sizeof(cl_mem), &gpuCirclesCenters); assert(errCode == CL_SUCCESS);
   errCode = clSetKernelArg(kernel, 2, sizeof(cl_mem), &gpuCirclesRadii);   assert(errCode == CL_SUCCESS);
-  errCode = clSetKernelArg(kernel, 3, sizeof(cl_int), &numCircles);        assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 3, sizeof(cl_mem), &gpuCirclesColors);  assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 4, sizeof(cl_int), &numCircles);        assert(errCode == CL_SUCCESS);
 
-  errCode = clSetKernelArg(kernel, 4, sizeof(cl_mem), &gpuRectsCenters);          assert(errCode == CL_SUCCESS);
-  errCode = clSetKernelArg(kernel, 5, sizeof(cl_mem), &gpuRectsSizesFromCenters); assert(errCode == CL_SUCCESS);
-  errCode = clSetKernelArg(kernel, 6, sizeof(cl_int), &numRects);                 assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 5, sizeof(cl_mem), &gpuRectsCenters);          assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 6, sizeof(cl_mem), &gpuRectsSizesFromCenters); assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 7, sizeof(cl_mem), &gpuRectsColors);           assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 8, sizeof(cl_int), &numRects);                 assert(errCode == CL_SUCCESS);
 
-  errCode = clEnqueueNDRangeKernel(commandQueue, kernel, 1, nullptr, &globalWorkSize, &localWorkSize, 0, nullptr, nullptr); assert(errCode == CL_SUCCESS);
-  errCode = clEnqueueReadImage(commandQueue, gpuImage, CL_TRUE, origin, region, 0, 0, pixels, 0, nullptr, nullptr);         assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 9, sizeof(cl_float), &k); assert(errCode == CL_SUCCESS);
+
+  errCode = clEnqueueNDRangeKernel(commandQueue, kernel, 2, nullptr, globalWorkSize, localWorkSize, 0, nullptr, nullptr); assert(errCode == CL_SUCCESS);
+  errCode = clEnqueueReadImage(commandQueue, gpuImage, CL_TRUE, origin, region, 0, 0, pixels, 0, nullptr, nullptr);       assert(errCode == CL_SUCCESS);
 
   errCode = clFinish(commandQueue); assert(errCode == CL_SUCCESS);
 }
@@ -245,12 +270,16 @@ void OCL_RayMarching::createCirclesBuffer(int count) {
   numCircles = count;
   hostCirclesCenters = new cl_float2[numCircles];
   hostCirclesRadii = new cl_float[numCircles];
+  hostCirclesColors = new cl_float3[numCircles];
 
   cl_int gpuMallocResult;
   gpuCirclesCenters = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float2) * numCircles, nullptr, &gpuMallocResult);
   assert(gpuMallocResult == CL_SUCCESS);
 
   gpuCirclesRadii = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float) * numCircles, nullptr, &gpuMallocResult);
+  assert(gpuMallocResult == CL_SUCCESS);
+
+  gpuCirclesColors = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3) * numCircles, nullptr, &gpuMallocResult);
   assert(gpuMallocResult == CL_SUCCESS);
 }
 
@@ -261,6 +290,7 @@ void OCL_RayMarching::createRectsBuffer(int count) {
   numRects = count;
   hostRectsCenters = new cl_float2[numRects];
   hostRectsSizesFromCenters = new cl_float2[numRects];
+  hostRectsColors = new cl_float3[numRects];
 
   cl_int gpuMallocResult;
   gpuRectsCenters = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float2) * numRects, nullptr, &gpuMallocResult);
@@ -268,25 +298,32 @@ void OCL_RayMarching::createRectsBuffer(int count) {
 
   gpuRectsSizesFromCenters = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float2) * numRects, nullptr, &gpuMallocResult);
   assert(gpuMallocResult == CL_SUCCESS);
+
+  gpuRectsColors = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3) * numRects, nullptr, &gpuMallocResult);
+  assert(gpuMallocResult == CL_SUCCESS);
 }
 
 void OCL_RayMarching::clearHostCircles() {
   if (hostCirclesCenters) delete[] hostCirclesCenters;
   if (hostCirclesRadii)   delete[] hostCirclesRadii;
+  if (hostCirclesColors)  delete[] hostCirclesColors;
 }
 
 void OCL_RayMarching::clearHostRects() {
   if (hostRectsCenters)          delete[] hostRectsCenters;
   if (hostRectsSizesFromCenters) delete[] hostRectsSizesFromCenters;
+  if (hostRectsColors)           delete[] hostRectsColors;
 }
 
 void OCL_RayMarching::clearGpuCircles() {
   if (gpuCirclesCenters) clReleaseMemObject(gpuCirclesCenters);
   if (gpuCirclesRadii)   clReleaseMemObject(gpuCirclesRadii);
+  if (gpuCirclesColors)  clReleaseMemObject(gpuCirclesColors);
 }
 
 void OCL_RayMarching::clearGpuRects() {
   if (gpuRectsCenters)          clReleaseMemObject(gpuRectsCenters);
   if (gpuRectsSizesFromCenters) clReleaseMemObject(gpuRectsSizesFromCenters);
+  if (gpuRectsColors)           clReleaseMemObject(gpuRectsColors);
 }
 
