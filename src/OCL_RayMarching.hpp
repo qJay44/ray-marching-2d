@@ -21,14 +21,22 @@ private:
   const size_t imageSize;
   u8* pixels = nullptr;
 
-  cl_float2* hostCirclesCenters = nullptr;
-  cl_float* hostCirclesRadii = nullptr;
-  cl_float3* hostCirclesColors = nullptr;
+  struct Circle {
+    cl_float2 center;
+    cl_float radius;
+    cl_float3 color;
+  };
+
+  struct Rectangle {
+    cl_float2 center;
+    cl_float2 sizeFromCenter;
+    cl_float3 color;
+  };
+
+  Circle* hostCircles = nullptr;
   int numCircles = 0;
 
-  cl_float2* hostRectsCenters = nullptr;
-  cl_float2* hostRectsSizesFromCenters = nullptr;
-  cl_float3* hostRectsColors = nullptr;
+  Rectangle* hostRectangles = nullptr;
   int numRects = 0;
 
   cl_device_id device = nullptr;
@@ -39,14 +47,8 @@ private:
   cl_command_queue commandQueue;
 
   cl_mem gpuImage = nullptr;
-
-  cl_mem gpuCirclesCenters = nullptr;
-  cl_mem gpuCirclesRadii = nullptr;
-  cl_mem gpuCirclesColors = nullptr;
-
-  cl_mem gpuRectsCenters = nullptr;
-  cl_mem gpuRectsSizesFromCenters = nullptr;
-  cl_mem gpuRectsColors = nullptr;
+  cl_mem gpuCircles = nullptr;
+  cl_mem gpuRectangles = nullptr;
 
   cl_kernel kernel;
   cl_program program;
@@ -55,9 +57,10 @@ private:
   void createCirclesBuffer(int count);
   void createRectsBuffer(int count);
 
-  void clearHostCircles();
-  void clearHostRects();
-  void clearGpuCircles();
-  void clearGpuRects();
+  void clearHostCicles();
+  void clearHostRectangles();
+
+  void clearGpuCicles();
+  void clearGpuRectangles();
 };
 
