@@ -2,7 +2,7 @@
 
 #include <list>
 
-#include "OCL_RayMarching.hpp"
+#include "OCL_SDF.hpp"
 #include "ShapeContainer.hpp"
 
 class Ray : public sf::Drawable {
@@ -19,7 +19,7 @@ private:
   sf::Vector2f origin;
   size_t maxMarches;
   int mode;
-  OCL_RayMarching ocl;
+  OCL_SDF ocl;
   sf::Texture oclTexture;
 
   sf::Vector2f direction;

@@ -3,10 +3,10 @@
 #include "CL/cl.h"
 #include "utils/types.hpp"
 
-class OCL_RayMarching {
+class OCL_SDF {
 public:
-  OCL_RayMarching(size_t width, size_t height);
-  ~OCL_RayMarching();
+  OCL_SDF(size_t width, size_t height);
+  ~OCL_SDF();
 
   void updateCirclesBuffer(const std::vector<sf::CircleShape>& circles);
   void updateRectsBuffer(const std::vector<sf::RectangleShape>& rects);

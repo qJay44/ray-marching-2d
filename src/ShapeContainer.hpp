@@ -7,19 +7,9 @@ struct ShapeContainer : public sf::Drawable {
 
   sf::Shape* holdingShape = nullptr;
 
-  void generate() {
-    rects.clear();
-    for (size_t i = 0; i < 5; i++) {
-      sf::Vector2f size(randBetween(50, 100), randBetween(50, 100));
-      sf::Vector2f pos = randPos();
-      sf::RectangleShape rect(size);
-      rect.setPosition(pos);
-      rect.setFillColor(randColor());
-      rects.push_back(rect);
-    }
-
+  void generate(int numCircles, int numRects) {
     circles.clear();
-    for (size_t i = 0; i < 5; i++) {
+    for (int i = 0; i < numCircles; i++) {
       float radius = randBetween(50, 100);
       sf::Vector2f pos = randPos();
       sf::CircleShape circle(100);
@@ -28,6 +18,16 @@ struct ShapeContainer : public sf::Drawable {
       circle.setPosition(pos);
       circle.setFillColor(randColor());
       circles.push_back(circle);
+    }
+
+    rects.clear();
+    for (int i = 0; i < numRects; i++) {
+      sf::Vector2f size(randBetween(50, 100), randBetween(50, 100));
+      sf::Vector2f pos = randPos();
+      sf::RectangleShape rect(size);
+      rect.setPosition(pos);
+      rect.setFillColor(randColor());
+      rects.push_back(rect);
     }
   };
 

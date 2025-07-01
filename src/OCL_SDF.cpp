@@ -6,7 +6,7 @@
 #include "CL/cl.h"
 #include "utils/utils.hpp"
 
-#include "OCL_RayMarching.hpp"
+#include "OCL_SDF.hpp"
 
 #define ATTRIBUTE_COUNT 5
 
@@ -26,7 +26,7 @@ const char* const attributeNames[ATTRIBUTE_COUNT] = {
   "CL_PLATFORM_EXTENSIONS"
 };
 
-OCL_RayMarching::OCL_RayMarching(size_t width, size_t height)
+OCL_SDF::OCL_SDF(size_t width, size_t height)
   : width(width), height(height), imageSize(width * height), pixels(new u8[width * height * 4]){
 
   cl_platform_id platforms[64];
@@ -117,7 +117,7 @@ OCL_RayMarching::OCL_RayMarching(size_t width, size_t height)
   assert(gpuImageMallocResult == CL_SUCCESS);
 
   cl_int programResult;
-  std::string clFile = readFile("ray-marching.cl");
+  std::string clFile = readFile("renderSDF.cl");
   const char* programSource = clFile.c_str();
   size_t programSourceLength = 0;
   program = clCreateProgramWithSource(context, 1, &programSource, &programSourceLength, &programResult);
@@ -142,7 +142,7 @@ OCL_RayMarching::OCL_RayMarching(size_t width, size_t height)
   assert(kernelArgResult1 == CL_SUCCESS);
 }
 
-OCL_RayMarching::~OCL_RayMarching() {
+OCL_SDF::~OCL_SDF() {
   if (pixels) delete[] pixels;
   clearHostCicles();
   clearHostRectangles();
@@ -158,7 +158,7 @@ OCL_RayMarching::~OCL_RayMarching() {
 	clReleaseDevice(device);
 }
 
-void OCL_RayMarching::updateCirclesBuffer(const std::vector<sf::CircleShape>& circles) {
+void OCL_SDF::updateCirclesBuffer(const std::vector<sf::CircleShape>& circles) {
   // gpuCirclesCenters always being created along with gpuCirclesRadii
   if (int(circles.size()) != numCircles || gpuCircles == nullptr)
     createCirclesBuffer(circles.size());
@@ -184,7 +184,7 @@ void OCL_RayMarching::updateCirclesBuffer(const std::vector<sf::CircleShape>& ci
   assert(hostCopyResult == CL_SUCCESS);
 }
 
-void OCL_RayMarching::updateRectsBuffer(const std::vector<sf::RectangleShape>& rects) {
+void OCL_SDF::updateRectsBuffer(const std::vector<sf::RectangleShape>& rects) {
   // gpuRectsCenters always being created along with gpuRectsSizesFromCenters
   if (int(rects.size()) != numRects || gpuRectangles == nullptr)
     createRectsBuffer(rects.size());
@@ -213,7 +213,7 @@ void OCL_RayMarching::updateRectsBuffer(const std::vector<sf::RectangleShape>& r
   assert(hostCopyResult == CL_SUCCESS);
 }
 
-void OCL_RayMarching::run(float k) {
+void OCL_SDF::run(float k) {
   constexpr size_t origin[3] = {0, 0, 0};
   const size_t region[3] = {width, height, 1};
 
@@ -237,11 +237,11 @@ void OCL_RayMarching::run(float k) {
   errCode = clFinish(commandQueue); assert(errCode == CL_SUCCESS);
 }
 
-const u8* OCL_RayMarching::getPixels() const {
+const u8* OCL_SDF::getPixels() const {
   return pixels;
 }
 
-void OCL_RayMarching::createCirclesBuffer(int count) {
+void OCL_SDF::createCirclesBuffer(int count) {
   clearHostCicles();
   clearGpuCicles();
 
@@ -253,7 +253,7 @@ void OCL_RayMarching::createCirclesBuffer(int count) {
   assert(gpuMallocResult == CL_SUCCESS);
 }
 
-void OCL_RayMarching::createRectsBuffer(int count) {
+void OCL_SDF::createRectsBuffer(int count) {
   clearHostRectangles();
   clearGpuRectangles();
 
@@ -265,9 +265,9 @@ void OCL_RayMarching::createRectsBuffer(int count) {
   assert(gpuMallocResult == CL_SUCCESS);
 }
 
-void OCL_RayMarching::clearHostCicles()     { if (hostCircles)    delete[] hostCircles;    }
-void OCL_RayMarching::clearHostRectangles() { if (hostRectangles) delete[] hostRectangles; }
+void OCL_SDF::clearHostCicles()     { if (hostCircles)    delete[] hostCircles;    }
+void OCL_SDF::clearHostRectangles() { if (hostRectangles) delete[] hostRectangles; }
 
-void OCL_RayMarching::clearGpuCicles()      { if (gpuCircles)    clReleaseMemObject(gpuCircles);    }
-void OCL_RayMarching::clearGpuRectangles()  { if (gpuRectangles) clReleaseMemObject(gpuRectangles); }
+void OCL_SDF::clearGpuCicles()      { if (gpuCircles)    clReleaseMemObject(gpuCircles);    }
+void OCL_SDF::clearGpuRectangles()  { if (gpuRectangles) clReleaseMemObject(gpuRectangles); }
 

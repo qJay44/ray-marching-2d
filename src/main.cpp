@@ -20,11 +20,13 @@ int main() {
     error("Can't open font []", fontPath);
 
 
+  int numCircles = 5;
+  int numRects = 0;
   ShapeContainer shaperContainer;
-  shaperContainer.generate();
+  shaperContainer.generate(numCircles, numRects);
 
   Ray ray(sf::Vector2f{20.f, 20.f}, 250);
-  float k = 0.2f;
+  float k = 0.1f;
 
   sf::Clock clock;
   sf::Vector2f mousePos;
@@ -43,7 +45,7 @@ int main() {
             window.close();
             break;
           case sf::Keyboard::Scancode::R:
-            shaperContainer.generate();
+            shaperContainer.generate(numCircles, numRects);
             break;
           case sf::Keyboard::Scancode::S:
             shaperContainer.showShapes = !shaperContainer.showShapes;
@@ -58,7 +60,7 @@ int main() {
             break;
         };
       } else if (const auto* scrolled = event->getIf<sf::Event::MouseWheelScrolled>()) {
-        k += scrolled->delta;
+        k += scrolled->delta * 0.01f;
         textK.setString(std::format("{:.2f}", k));
       }
     }
