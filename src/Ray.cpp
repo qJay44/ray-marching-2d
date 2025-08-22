@@ -2,10 +2,11 @@
 #include "utils/utils.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 
 Ray::Ray(sf::Vector2f origin, size_t maxMarches, int mode)
-  : origin(origin), maxMarches(maxMarches), mode(mode), ocl(WIDTH, HEIGHT), oclTexture({WIDTH, HEIGHT}) {
+  : origin(origin), maxMarches(maxMarches), mode(mode), ocl(WIDTH, HEIGHT), sdfTexture({WIDTH, HEIGHT}), sdfSprite(sdfTexture) {
   circleBase.setFillColor({30, 30, 30, 40});
   circleBase.setOutlineThickness(2.f);
   circleBase.setOutlineColor({90, 90, 90, 255});
@@ -19,8 +20,13 @@ void Ray::setMode(int mode) {
   this->mode = mode;
 }
 
-void Ray::update(const sf::Vector2f& mousePos) {
-  sf::Vector2f v = mousePos - origin;
+void Ray::update(sf::Vector2i mousePos) {
+  sf::Vector2f mousePosClamped(
+    std::clamp(mousePos.x, 0, (int)WIDTH),
+    std::clamp(mousePos.y, 0, (int)HEIGHT)
+  );
+
+  sf::Vector2f v = mousePosClamped - origin;
   length = v.length();
   direction = v / length;
 
@@ -29,25 +35,28 @@ void Ray::update(const sf::Vector2f& mousePos) {
   rayCircles.clear();
 }
 
-void Ray::march(const ShapeContainer& shapeContainer, float k) {
+void Ray::march(const ShapeContainer& shapeContainer) {
+  // TODO: Update only if atleast one shape were changed (TODO: Update only the updated shape?)
+  ocl.updateCirclesBuffer(shapeContainer.circles);
+  ocl.updateRectsBuffer(shapeContainer.rects);
+  ocl.run();
+
+  const float* sdfPixels = ocl.getPixels();
+
   switch (mode) {
     case 0: {
       sf::Vector2f currentOrigin = origin;
       float currentLength = 0.f;
 
       for (size_t i = 0; currentLength < length && i < maxMarches; i++) {
-        float dstToScene = length;
+        // The update function clamps to [0, WIDTH], so its safe to cast to unsigned types
+        size_t px = static_cast<size_t>(currentOrigin.x);
+        size_t py = static_cast<size_t>(currentOrigin.y);
+        size_t pixIdx = py * WIDTH + px;
+        float dstToScene = sdfPixels[pixIdx] * WIDTH;
 
-        for (const sf::CircleShape& circle : shapeContainer.circles) {
-          sf::Vector2f center = circle.getPosition();
-          dstToScene = std::min(dstToScene, signedDstToCircle(currentOrigin, center, circle.getRadius()));
-        }
-
-        for (const sf::RectangleShape& rect : shapeContainer.rects) {
-          sf::Vector2f sizeFromCenter = rect.getGeometricCenter();
-          sf::Vector2f centerGlobal = rect.getPosition() + sizeFromCenter;
-          dstToScene = std::min(dstToScene, signedDstToRectangle(currentOrigin, centerGlobal, sizeFromCenter));
-        }
+        if (dstToScene < 10.f)
+          break;
 
         sf::CircleShape newCircle(circleBase);
         newCircle.setRadius(dstToScene);
@@ -63,10 +72,8 @@ void Ray::march(const ShapeContainer& shapeContainer, float k) {
       break;
     }
     case 1: {
-      ocl.updateCirclesBuffer(shapeContainer.circles);
-      ocl.updateRectsBuffer(shapeContainer.rects);
-      ocl.run(k);
-      oclTexture.update(ocl.getPixels());
+      // sdfTexture.update(sdfPixels);
+      // sdfSprite = sf::Sprite(sdfTexture);
       break;
     }
     default:
@@ -86,7 +93,7 @@ void Ray::draw(sf::RenderTarget& target, sf::RenderStates states) const {
       break;
     }
     case 1: {
-      target.draw(sf::Sprite(oclTexture));
+      target.draw(sdfSprite);
       break;
     }
     default:

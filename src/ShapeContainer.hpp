@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 struct ShapeContainer : public sf::Drawable {
   std::vector<sf::RectangleShape> rects;
   std::vector<sf::CircleShape> circles;
@@ -31,24 +32,29 @@ struct ShapeContainer : public sf::Drawable {
     }
   };
 
-  void update(const sf::Vector2f& mousePos, bool hold) {
+  void update(sf::Vector2i mousePos, bool hold) {
+    sf::Vector2f mousePosClamped(
+      std::clamp(mousePos.x, 0, (int)WIDTH),
+      std::clamp(mousePos.y, 0, (int)HEIGHT)
+    );
+
     if (!holdingShape && hold) {
       for (sf::CircleShape& circle : circles) {
-        if (circle.getGlobalBounds().contains(sf::Vector2f(mousePos))) {
+        if (circle.getGlobalBounds().contains(mousePosClamped)) {
           holdingShape = &circle;
           break;
         }
       }
 
       for (sf::RectangleShape& rect : rects) {
-        if (rect.getGlobalBounds().contains(sf::Vector2f(mousePos))) {
+        if (rect.getGlobalBounds().contains(mousePosClamped)) {
           holdingShape = &rect;
           break;
         }
       }
     } else {
       if (hold)
-        holdingShape->setPosition(mousePos);
+        holdingShape->setPosition(mousePosClamped);
       else
         holdingShape = nullptr;
     }

@@ -27,7 +27,7 @@ const char* const attributeNames[ATTRIBUTE_COUNT] = {
 };
 
 OCL_SDF::OCL_SDF(size_t width, size_t height)
-  : width(width), height(height), imageSize(width * height), pixels(new u8[width * height * 4]){
+  : width(width), height(height), imageSize(width * height), pixels(new float[width * height]){
 
   cl_platform_id platforms[64];
   cl_uint platformCount;
@@ -100,8 +100,8 @@ OCL_SDF::OCL_SDF(size_t width, size_t height)
   assert(commandQueueResult == CL_SUCCESS);
 
   cl_image_format format;
-  format.image_channel_order = CL_RGBA;
-  format.image_channel_data_type = CL_UNORM_INT8;
+  format.image_channel_order = CL_R;
+  format.image_channel_data_type = CL_FLOAT;
 
   cl_int gpuImageMallocResult;
   #ifdef CL_VERSION_1_2
@@ -117,7 +117,7 @@ OCL_SDF::OCL_SDF(size_t width, size_t height)
   assert(gpuImageMallocResult == CL_SUCCESS);
 
   cl_int programResult;
-  std::string clFile = readFile("renderSDF.cl");
+  std::string clFile = readFile("SDF.cl");
   const char* programSource = clFile.c_str();
   size_t programSourceLength = 0;
   program = clCreateProgramWithSource(context, 1, &programSource, &programSourceLength, &programResult);
@@ -134,12 +134,12 @@ OCL_SDF::OCL_SDF(size_t width, size_t height)
   }
 
   cl_int kernelResult;
-  kernel = clCreateKernel(program, "renderSDF", &kernelResult);
+  kernel = clCreateKernel(program, "calcSDF", &kernelResult);
   assert(kernelResult == CL_SUCCESS);
 
   [[maybe_unused]]
-  cl_int kernelArgResult1 = clSetKernelArg(kernel, 0, sizeof(cl_mem), &gpuImage);
-  assert(kernelArgResult1 == CL_SUCCESS);
+  cl_int kernelArgResult = clSetKernelArg(kernel, 0, sizeof(cl_mem), &gpuImage);
+  assert(kernelArgResult == CL_SUCCESS);
 }
 
 OCL_SDF::~OCL_SDF() {
@@ -159,7 +159,6 @@ OCL_SDF::~OCL_SDF() {
 }
 
 void OCL_SDF::updateCirclesBuffer(const std::vector<sf::CircleShape>& circles) {
-  // gpuCirclesCenters always being created along with gpuCirclesRadii
   if (int(circles.size()) != numCircles || gpuCircles == nullptr)
     createCirclesBuffer(circles.size());
 
@@ -185,7 +184,6 @@ void OCL_SDF::updateCirclesBuffer(const std::vector<sf::CircleShape>& circles) {
 }
 
 void OCL_SDF::updateRectsBuffer(const std::vector<sf::RectangleShape>& rects) {
-  // gpuRectsCenters always being created along with gpuRectsSizesFromCenters
   if (int(rects.size()) != numRects || gpuRectangles == nullptr)
     createRectsBuffer(rects.size());
 
@@ -213,7 +211,7 @@ void OCL_SDF::updateRectsBuffer(const std::vector<sf::RectangleShape>& rects) {
   assert(hostCopyResult == CL_SUCCESS);
 }
 
-void OCL_SDF::run(float k) {
+void OCL_SDF::run() {
   constexpr size_t origin[3] = {0, 0, 0};
   const size_t region[3] = {width, height, 1};
 
@@ -229,15 +227,13 @@ void OCL_SDF::run(float k) {
   errCode = clSetKernelArg(kernel, 3, sizeof(cl_mem), &gpuRectangles); assert(errCode == CL_SUCCESS);
   errCode = clSetKernelArg(kernel, 4, sizeof(cl_int), &numRects);      assert(errCode == CL_SUCCESS);
 
-  errCode = clSetKernelArg(kernel, 5, sizeof(cl_float), &k); assert(errCode == CL_SUCCESS);
-
   errCode = clEnqueueNDRangeKernel(commandQueue, kernel, 2, nullptr, globalWorkSize, localWorkSize, 0, nullptr, nullptr); assert(errCode == CL_SUCCESS);
   errCode = clEnqueueReadImage(commandQueue, gpuImage, CL_TRUE, origin, region, 0, 0, pixels, 0, nullptr, nullptr);       assert(errCode == CL_SUCCESS);
 
   errCode = clFinish(commandQueue); assert(errCode == CL_SUCCESS);
 }
 
-const u8* OCL_SDF::getPixels() const {
+const float* OCL_SDF::getPixels() const {
   return pixels;
 }
 

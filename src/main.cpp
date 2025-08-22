@@ -17,22 +17,18 @@ int main() {
   std::string fontPath = "fonts/monocraft/Monocraft.ttf";
   sf::Font font;
   if (!font.openFromFile(fontPath))
-    error("Can't open font []", fontPath);
+    error("Can't open font [{}]", fontPath);
 
-
-  int numCircles = 5;
-  int numRects = 0;
+  int numCircles = 3;
+  int numRects = 3;
   ShapeContainer shaperContainer;
   shaperContainer.generate(numCircles, numRects);
 
-  Ray ray(sf::Vector2f{20.f, 20.f}, 250);
-  float k = 0.1f;
+  Ray ray(sf::Vector2f{20.f, 20.f}, 64);
 
   sf::Clock clock;
-  sf::Vector2f mousePos;
-  sf::Text textK(font, std::format("{:.2f}", k), 20);
-  textK.setOutlineThickness(1.f);
-  textK.setOutlineColor(sf::Color::Black);
+  sf::Vector2i mousePos;
+
   float titleTime = 0.f;
   float dt;
   while (window.isOpen()) {
@@ -59,14 +55,11 @@ int main() {
           default:
             break;
         };
-      } else if (const auto* scrolled = event->getIf<sf::Event::MouseWheelScrolled>()) {
-        k += scrolled->delta * 0.01f;
-        textK.setString(std::format("{:.2f}", k));
       }
     }
 
     dt = clock.restart().asSeconds();
-    mousePos = sf::Vector2f(sf::Mouse::getPosition(window));
+    mousePos = sf::Mouse::getPosition(window);
 
     if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
       shaperContainer.update(mousePos, true);
@@ -74,20 +67,19 @@ int main() {
       shaperContainer.update(mousePos, false);
 
     if (titleTime > 0.3f) {
-      window.setTitle(std::format("FPS: {}, {:.5f} ms", static_cast<int>(1.f / dt), dt));
+      window.setTitle(std::format("FPS: {}, {:.2f} ms", static_cast<int>(1.f / dt), dt * 1000.f));
       titleTime = 0.f;
     } else {
       titleTime += dt;
     }
 
     ray.update(mousePos);
-    ray.march(shaperContainer, k);
+    ray.march(shaperContainer);
 
     window.clear({10, 10, 10, 255});
 
     window.draw(ray);
     window.draw(shaperContainer);
-    window.draw(textK);
 
     window.display();
   }

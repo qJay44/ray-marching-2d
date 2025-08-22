@@ -11,8 +11,8 @@ public:
 
   void setMode(int mode);
 
-  void update(const sf::Vector2f& mousePos);
-  void march(const ShapeContainer& shapeContainer, float k);
+  void update(sf::Vector2i mousePos);
+  void march(const ShapeContainer& shapeContainer);
   void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
 
 private:
@@ -20,7 +20,9 @@ private:
   size_t maxMarches;
   int mode;
   OCL_SDF ocl;
-  sf::Texture oclTexture;
+
+  sf::Texture sdfTexture;
+  sf::Sprite sdfSprite;
 
   sf::Vector2f direction;
   float length;

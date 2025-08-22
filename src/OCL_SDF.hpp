@@ -11,15 +11,15 @@ public:
   void updateCirclesBuffer(const std::vector<sf::CircleShape>& circles);
   void updateRectsBuffer(const std::vector<sf::RectangleShape>& rects);
 
-  void run(float k);
+  void run();
 
   [[nodiscard]]
-  const u8* getPixels() const;
+  const float* getPixels() const;
 
 private:
   const size_t width, height;
   const size_t imageSize;
-  u8* pixels = nullptr;
+  float* pixels = nullptr;
 
   struct Circle {
     cl_float2 center;

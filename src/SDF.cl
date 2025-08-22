@@ -25,50 +25,34 @@ float signedDstToRectangle(const float2 point, const Rectangle rect) {
   return unsignedDst + dstInsideBox;
 }
 
-__kernel void renderSDF(
+__kernel void calcSDF(
   __write_only image2d_t img,
   __global const Circle* circles, const int numCircles,
-  __global const Rectangle* rectangles, const int numRectangles,
-  const float k
+  __global const Rectangle* rectangles, const int numRectangles
 ) {
+  int width = get_image_width(img);
+  // int height = get_image_height(img);
+
   int x = get_global_id(0);
   int y = get_global_id(1);
   float2 point = (float2)(x, y);
 
-  int width = get_image_width(img);
-  int height = get_image_height(img);
-  float maxDist = length((float2)(width, height));
-
-  if (x > width - 1 || y > height - 1) return;
-
-  float minDstCircle = FLT_MAX;
-  float minDstRect = FLT_MAX;
-  float3 minDstCircleColor = 0.f;
-  float3 minDstRectColor = 0.f;
+  float minDst = FLT_MAX;
+  float maxDst = width; // Assuming width = height;
 
   for (int i = 0; i < numCircles; i++) {
     Circle circle = circles[i];
     float sdf = signedDstToCircle(point, circle);
-    if (sdf < minDstCircle) {
-      float t = smoothstep(0.f, 1.f, fabs(sdf) / maxDist);
-      minDstCircle = sdf;
-      minDstCircleColor = mix(circle.color, minDstCircleColor, pow(t, k));
-    }
+    minDst = fmin(minDst, sdf);
   }
 
   for (int i = 0; i < numRectangles; i++) {
     Rectangle rect = rectangles[i];
     float sdf = signedDstToRectangle(point, rect);
-    if (sdf < minDstRect) {
-      float t = smoothstep(0.f, 1.f, fabs(sdf) / maxDist);
-      minDstRect = sdf;
-      minDstRectColor = mix(rect.color, minDstRectColor, pow(t, k));
-    }
+    minDst = fmin(minDst, sdf);
   }
 
-  float t = fabs(min(minDstCircle, minDstRect)) / maxDist;
-  t = smoothstep(0.f, 1.f, t);
-  float3 col = mix(minDstCircleColor, minDstRectColor, pow(t, k));
+  float3 col = minDst / maxDst;
 
   write_imagef(img, (int2)(x, y), (float4)(col, 1.f));
 }
