@@ -14,24 +14,49 @@ int main() {
   sf::RenderWindow window = sf::RenderWindow(sf::VideoMode({WIDTH, HEIGHT}), "CMake SFML Project");
   window.setFramerateLimit(144);
 
-  std::string fontPath = "fonts/monocraft/Monocraft.ttf";
+  std::string fontPath = "res/fonts/monocraft/Monocraft.ttf";
   sf::Font font;
   if (!font.openFromFile(fontPath))
     error("Can't open font [{}]", fontPath);
 
+  // Shapes setup
+  int drawMode = 0;
   int numCircles = 3;
   int numRects = 3;
-  ShapeContainer shaperContainer;
-  shaperContainer.generate(numCircles, numRects);
+  ShapeContainer shapeContainer;
+  shapeContainer.generate(numCircles, numRects);
 
+  // OpenCL related
+  OCL_SDF ocl(WIDTH, HEIGHT);
+  sf::Texture sdfTexture({WIDTH, HEIGHT});
+  sf::Sprite sdfSprite(sdfTexture);
+
+  // Ray march shader
+  sf::Shader rmShader(fspath("rm.frag"), sf::Shader::Type::Fragment);
+  sf::RectangleShape rmRect({WIDTH, HEIGHT});
+  sf::RenderTexture renderTexture({WIDTH, HEIGHT});
+  sf::Texture blueNoise("res/tex/LDR_LLL1_0.png");
+  rmShader.setUniform("u_baseTexture", renderTexture.getTexture());
+  rmShader.setUniform("u_sdfTexture", sdfTexture);
+  rmShader.setUniform("u_blueNoiseTexture", blueNoise);
+  rmShader.setUniform("u_resolution", sf::Glsl::Vec2{WIDTH, HEIGHT});
+  rmShader.setUniform("u_raysPerPixel", 32);
+  rmShader.setUniform("u_stepsPerRay", 32);
+  rmShader.setUniform("u_epsilon", 0.001f);
+
+  // Single ray
   Ray ray(sf::Vector2f{20.f, 20.f}, 64);
 
+  // Loop related
   sf::Clock clock;
   sf::Vector2i mousePos;
-
   float titleTime = 0.f;
   float dt;
+
   while (window.isOpen()) {
+
+    // ----- Events ----------------------------------- //
+
     while (const std::optional event = window.pollEvent()) {
       if (event->is<sf::Event::Closed>()) {
         window.close();
@@ -41,16 +66,19 @@ int main() {
             window.close();
             break;
           case sf::Keyboard::Scancode::R:
-            shaperContainer.generate(numCircles, numRects);
+            shapeContainer.generate(numCircles, numRects);
             break;
           case sf::Keyboard::Scancode::S:
-            shaperContainer.showShapes = !shaperContainer.showShapes;
+            shapeContainer.showShapes = !shapeContainer.showShapes;
             break;
           case sf::Keyboard::Scancode::Num1:
-            ray.setMode(0);
+            drawMode = 0;
             break;
           case sf::Keyboard::Scancode::Num2:
-            ray.setMode(1);
+            drawMode = 1;
+            break;
+          case sf::Keyboard::Scancode::Num3:
+            drawMode = 2;
             break;
           default:
             break;
@@ -58,13 +86,15 @@ int main() {
       }
     }
 
+    // ----- Update meta ------------------------------ //
+
     dt = clock.restart().asSeconds();
     mousePos = sf::Mouse::getPosition(window);
 
     if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
-      shaperContainer.update(mousePos, true);
+      shapeContainer.update(mousePos, true);
     else
-      shaperContainer.update(mousePos, false);
+      shapeContainer.update(mousePos, false);
 
     if (titleTime > 0.3f) {
       window.setTitle(std::format("FPS: {}, {:.2f} ms", static_cast<int>(1.f / dt), dt * 1000.f));
@@ -73,13 +103,43 @@ int main() {
       titleTime += dt;
     }
 
+    // ----- Update objects --------------------------- //
+
+    // TODO: Update only if atleast one shape were changed (TODO: Update only the updated shape?)
+    ocl.updateCirclesBuffer(shapeContainer.circles);
+    ocl.updateRectsBuffer(shapeContainer.rects);
+    ocl.run();
+
+    const u8* sdfPixels = ocl.getPixels();
+
     ray.update(mousePos);
-    ray.march(shaperContainer);
+    ray.march(sdfPixels);
+
+    // ----- Draw ------------------------------------- //
 
     window.clear({10, 10, 10, 255});
+    renderTexture.clear();
 
-    window.draw(ray);
-    window.draw(shaperContainer);
+    switch (drawMode) {
+      case 0: {
+        window.draw(ray);
+        window.draw(shapeContainer);
+        break;
+      }
+      case 1: {
+        sdfTexture.update(sdfPixels);
+        sdfSprite = sf::Sprite(sdfTexture);
+        window.draw(sdfSprite);
+        window.draw(shapeContainer);
+        break;
+      }
+      case 2: {
+        renderTexture.draw(shapeContainer);
+        sdfTexture.update(sdfPixels);
+        window.draw(rmRect, &rmShader);
+        break;
+      }
+    }
 
     window.display();
   }

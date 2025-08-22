@@ -14,12 +14,12 @@ public:
   void run();
 
   [[nodiscard]]
-  const float* getPixels() const;
+  const u8* getPixels() const;
 
 private:
   const size_t width, height;
   const size_t imageSize;
-  float* pixels = nullptr;
+  u8* pixels = nullptr;
 
   struct Circle {
     cl_float2 center;

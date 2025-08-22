@@ -27,7 +27,7 @@ const char* const attributeNames[ATTRIBUTE_COUNT] = {
 };
 
 OCL_SDF::OCL_SDF(size_t width, size_t height)
-  : width(width), height(height), imageSize(width * height), pixels(new float[width * height]){
+  : width(width), height(height), imageSize(width * height), pixels(new u8[width * height * 4]){
 
   cl_platform_id platforms[64];
   cl_uint platformCount;
@@ -100,8 +100,8 @@ OCL_SDF::OCL_SDF(size_t width, size_t height)
   assert(commandQueueResult == CL_SUCCESS);
 
   cl_image_format format;
-  format.image_channel_order = CL_R;
-  format.image_channel_data_type = CL_FLOAT;
+  format.image_channel_order = CL_RGBA;
+  format.image_channel_data_type = CL_UNORM_INT8;
 
   cl_int gpuImageMallocResult;
   #ifdef CL_VERSION_1_2
@@ -233,7 +233,7 @@ void OCL_SDF::run() {
   errCode = clFinish(commandQueue); assert(errCode == CL_SUCCESS);
 }
 
-const float* OCL_SDF::getPixels() const {
+const u8* OCL_SDF::getPixels() const {
   return pixels;
 }
 
