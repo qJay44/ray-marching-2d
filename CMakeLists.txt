@@ -21,7 +21,7 @@ list(REMOVE_ITEM SOURCES ${UTILS_PATH}/src/saveTif.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Werror)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${OCL_PATH}/include

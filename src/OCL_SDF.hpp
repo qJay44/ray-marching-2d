@@ -5,7 +5,7 @@
 
 class OCL_SDF {
 public:
-  OCL_SDF(size_t width, size_t height);
+  OCL_SDF(size_t width, size_t height, bool printInfo = false);
   ~OCL_SDF();
 
   void updateCirclesBuffer(const std::vector<sf::CircleShape>& circles);

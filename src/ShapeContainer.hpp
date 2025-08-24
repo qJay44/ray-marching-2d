@@ -15,7 +15,6 @@ struct ShapeContainer : public sf::Drawable {
       sf::Vector2f pos = randPos();
       sf::CircleShape circle(100);
       circle.setRadius(radius);
-      circle.setOrigin({radius, radius});
       circle.setPosition(pos);
       circle.setFillColor(randColor());
       circles.push_back(circle);
@@ -42,6 +41,10 @@ struct ShapeContainer : public sf::Drawable {
       for (sf::CircleShape& circle : circles) {
         if (circle.getGlobalBounds().contains(mousePosClamped)) {
           holdingShape = &circle;
+          sf::Vector2f shapePos = holdingShape->getPosition();
+          sf::Vector2f distToMous = mousePosClamped - shapePos;
+          holdingShape->setOrigin(distToMous);
+          holdingShape->setPosition(shapePos + distToMous);
           break;
         }
       }
@@ -49,14 +52,26 @@ struct ShapeContainer : public sf::Drawable {
       for (sf::RectangleShape& rect : rects) {
         if (rect.getGlobalBounds().contains(mousePosClamped)) {
           holdingShape = &rect;
+          sf::Vector2f shapePos = holdingShape->getPosition();
+          sf::Vector2f distToMous = mousePosClamped - shapePos;
+          holdingShape->setOrigin(distToMous);
+          holdingShape->setPosition(shapePos + distToMous);
           break;
         }
       }
     } else {
-      if (hold)
+      if (hold) {
         holdingShape->setPosition(mousePosClamped);
-      else
+      } else {
+        if (holdingShape) {
+          sf::Vector2f currOrigin = holdingShape->getOrigin();
+          holdingShape->setOrigin({0.f, 0.f});
+
+          sf::Vector2f shapePos = holdingShape->getPosition();
+          holdingShape->setPosition(shapePos - currOrigin);
+        }
         holdingShape = nullptr;
+      }
     }
   }
 

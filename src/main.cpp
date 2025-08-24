@@ -10,7 +10,7 @@ int main() {
   // Assuming the executable is launching from its own directory
   _chdir("../../../src");
 
-  srand(static_cast<unsigned int>(time(nullptr)));
+  // srand(static_cast<unsigned int>(time(nullptr)));
   sf::RenderWindow window = sf::RenderWindow(sf::VideoMode({WIDTH, HEIGHT}), "CMake SFML Project");
   window.setFramerateLimit(144);
 
@@ -26,6 +26,11 @@ int main() {
   ShapeContainer shapeContainer;
   shapeContainer.generate(numCircles, numRects);
 
+  sf::RectangleShape wall({100, 700});
+  wall.setPosition({500, 500});
+  wall.setFillColor(sf::Color::Black);
+  shapeContainer.rects.push_back(wall);
+
   // OpenCL related
   OCL_SDF ocl(WIDTH, HEIGHT);
   sf::Texture sdfTexture({WIDTH, HEIGHT});
@@ -34,9 +39,11 @@ int main() {
   // Ray march shader
   sf::Shader rmShader(fspath("rm.frag"), sf::Shader::Type::Fragment);
   sf::RectangleShape rmRect({WIDTH, HEIGHT});
-  sf::RenderTexture renderTexture({WIDTH, HEIGHT});
+  sf::RenderTexture shapesTexture({WIDTH, HEIGHT});
+  sf::RenderTexture previousFrame({WIDTH, HEIGHT});
+  sf::RenderTexture currentFrame({WIDTH, HEIGHT});
   sf::Texture blueNoise("res/tex/LDR_LLL1_0.png");
-  rmShader.setUniform("u_baseTexture", renderTexture.getTexture());
+  rmShader.setUniform("u_baseTexture", shapesTexture.getTexture());
   rmShader.setUniform("u_sdfTexture", sdfTexture);
   rmShader.setUniform("u_blueNoiseTexture", blueNoise);
   rmShader.setUniform("u_resolution", sf::Glsl::Vec2{WIDTH, HEIGHT});
@@ -53,8 +60,11 @@ int main() {
   float titleTime = 0.f;
   float dt;
 
-  while (window.isOpen()) {
+  shapesTexture.clear();
+  shapesTexture.draw(shapeContainer);
+  shapesTexture.display();
 
+  while (window.isOpen()) {
     // ----- Events ----------------------------------- //
 
     while (const std::optional event = window.pollEvent()) {
@@ -83,6 +93,14 @@ int main() {
           default:
             break;
         };
+      } else if (const auto* mouseBtnPressed = event->getIf<sf::Event::MouseButtonReleased>()) {
+        switch (mouseBtnPressed->button) {
+          case sf::Mouse::Button::Left:
+            shapeContainer.update(mousePos, false);
+            break;
+          default:
+            break;
+        }
       }
     }
 
@@ -91,10 +109,15 @@ int main() {
     dt = clock.restart().asSeconds();
     mousePos = sf::Mouse::getPosition(window);
 
-    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
+    if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
       shapeContainer.update(mousePos, true);
-    else
-      shapeContainer.update(mousePos, false);
+
+      shapesTexture.clear();
+      shapesTexture.draw(shapeContainer);
+      shapesTexture.display();
+
+      rmShader.setUniform("u_baseTexture", shapesTexture.getTexture());
+    }
 
     if (titleTime > 0.3f) {
       window.setTitle(std::format("FPS: {}, {:.2f} ms", static_cast<int>(1.f / dt), dt * 1000.f));
@@ -118,12 +141,12 @@ int main() {
     // ----- Draw ------------------------------------- //
 
     window.clear({10, 10, 10, 255});
-    renderTexture.clear();
 
     switch (drawMode) {
       case 0: {
         window.draw(ray);
         window.draw(shapeContainer);
+        window.display();
         break;
       }
       case 1: {
@@ -131,17 +154,29 @@ int main() {
         sdfSprite = sf::Sprite(sdfTexture);
         window.draw(sdfSprite);
         window.draw(shapeContainer);
+        window.display();
         break;
       }
       case 2: {
-        renderTexture.draw(shapeContainer);
         sdfTexture.update(sdfPixels);
-        window.draw(rmRect, &rmShader);
+
+        currentFrame.clear();
+        currentFrame.draw(rmRect, &rmShader);
+        currentFrame.display();
+
+        const sf::Sprite currentFrameSprite(currentFrame.getTexture());
+
+        window.draw(currentFrameSprite);
+        window.display();
+
+        previousFrame.clear();
+        previousFrame.draw(currentFrameSprite);
+        previousFrame.display();
+
+        rmShader.setUniform("u_baseTexture", previousFrame.getTexture());
         break;
       }
     }
-
-    window.display();
   }
 }
 

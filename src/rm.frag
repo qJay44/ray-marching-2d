@@ -9,6 +9,8 @@ uniform int u_stepsPerRay;
 uniform int u_raysPerPixel;
 uniform float u_epsilon;
 
+vec2 uvStep = 1.f / u_resolution;
+
 vec3 rayMarch(vec2 pix, vec2 dir) {
   float dist = 0.f;
   for (int i = 0; i < u_stepsPerRay; i++) {
@@ -23,7 +25,7 @@ vec3 rayMarch(vec2 pix, vec2 dir) {
     if (dist < u_epsilon) {
       return max(
         texture2D(u_baseTexture, pix).rgb,
-        texture2D(u_baseTexture, pix - (dir * (vec2(1.f) / u_resolution))).rgb
+        texture2D(u_baseTexture, pix - (dir * uvStep)).rgb
       );
     }
   }
@@ -40,8 +42,10 @@ void main() {
   if (dist > u_epsilon) {
     float brightness = max(light.r, max(light.g, light.b));
     float noise = TAU * texture2D(u_blueNoiseTexture, uv).r;
-    for (float angle = 0.f; angle < TAU; angle += TAU / u_raysPerPixel) {
-      vec2 rayDir = vec2(cos(angle + noise), -sin(angle + noise));
+    float step = TAU / u_raysPerPixel;
+
+    for (float angle = 0.f; angle < TAU; angle += step) {
+      vec2 rayDir = vec2(cos(angle + noise), sin(angle + noise));
       vec3 hitColor = rayMarch(uv, rayDir);
       light += hitColor;
       brightness += max(hitColor.r, max(hitColor.g, hitColor.b));

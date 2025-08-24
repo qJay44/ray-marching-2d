@@ -8,7 +8,7 @@
 
 #include "OCL_SDF.hpp"
 
-#define ATTRIBUTE_COUNT 5
+#define ATTRIBUTE_COUNT 5u
 
 const cl_platform_info attributeTypes[ATTRIBUTE_COUNT] = {
   CL_PLATFORM_NAME,
@@ -26,7 +26,7 @@ const char* const attributeNames[ATTRIBUTE_COUNT] = {
   "CL_PLATFORM_EXTENSIONS"
 };
 
-OCL_SDF::OCL_SDF(size_t width, size_t height)
+OCL_SDF::OCL_SDF(size_t width, size_t height, bool printInfo)
   : width(width), height(height), imageSize(width * height), pixels(new u8[width * height * 4]){
 
   cl_platform_id platforms[64];
@@ -36,25 +36,26 @@ OCL_SDF::OCL_SDF(size_t width, size_t height)
   cl_int platformsResult = clGetPlatformIDs(64, platforms, &platformCount);
   assert(platformsResult == CL_SUCCESS);
 
-  for (cl_uint i = 0; i < platformCount; i++) {
-    for (int j = 0; j < ATTRIBUTE_COUNT; j++) {
-      // Get platform attribute value size
-      size_t infosize = 0;
-      [[maybe_unused]]
-      cl_int getPlatformInfoResult = clGetPlatformInfo(platforms[i], attributeTypes[j], 0, nullptr, &infosize);
-      assert(getPlatformInfoResult == CL_SUCCESS);
-      char* info = new char[infosize];
+  if (printInfo) {
+    for (cl_uint i = 0; i < platformCount; i++) {
+      for (size_t j = 0; j < ATTRIBUTE_COUNT; j++) {
+        // Get platform attribute value size
+        size_t infosize = 0;
+        [[maybe_unused]]
+        cl_int getPlatformInfoResult = clGetPlatformInfo(platforms[i], attributeTypes[j], 0, nullptr, &infosize);
+        assert(getPlatformInfoResult == CL_SUCCESS);
+        char* info = new char[infosize];
 
-      // Get platform attribute value
-      getPlatformInfoResult = clGetPlatformInfo(platforms[i], attributeTypes[j], infosize, info, nullptr);
-      assert(getPlatformInfoResult == CL_SUCCESS);
-      printf("%d.%d %-11s: %s\n", i+1, j+1, attributeNames[j], info);
+        // Get platform attribute value
+        getPlatformInfoResult = clGetPlatformInfo(platforms[i], attributeTypes[j], infosize, info, nullptr);
+        assert(getPlatformInfoResult == CL_SUCCESS);
 
-      delete[] info;
+        printf("%d.%zu %-11s: %s\n", i+1, j+1, attributeNames[j], info);
+
+        delete[] info;
+      }
     }
   }
-
-  printf("\n");
 
   for (cl_uint i = 0; i < platformCount; i++) {
     cl_device_id devices[64];
@@ -76,20 +77,24 @@ OCL_SDF::OCL_SDF(size_t width, size_t height)
 
   assert(device);
 
-  clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(maxDimensions), &maxDimensions, nullptr);
-  printf("2.1 CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS: %zu\n", maxDimensions);
+  if (printInfo) {
+    puts("");
 
-  clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(maxLocalSize), &maxLocalSize, nullptr);
-  printf("2.2 CL_DEVICE_MAX_WORK_GROUP_SIZE: %zu\n", maxLocalSize);
+    clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(maxDimensions), &maxDimensions, nullptr);
+    printf("2.1 CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS: %zu\n", maxDimensions);
 
-  size_t* maxDimensionsValues = new size_t[maxDimensions];
-  clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_SIZES, maxDimensions * sizeof(maxDimensionsValues[0]), maxDimensionsValues, nullptr);
+    clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(maxLocalSize), &maxLocalSize, nullptr);
+    printf("2.2 CL_DEVICE_MAX_WORK_GROUP_SIZE: %zu\n", maxLocalSize);
 
-  printf("2.3 CL_DEVICE_MAX_WORK_ITEM_SIZES: ");
-  for (size_t i = 0; i < maxDimensions; i++) printf("%zu ", maxDimensionsValues[i]);
-  printf("\n\n");
+    size_t* maxDimensionsValues = new size_t[maxDimensions];
+    clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_SIZES, maxDimensions * sizeof(maxDimensionsValues[0]), maxDimensionsValues, nullptr);
 
-  delete[] maxDimensionsValues;
+    printf("2.3 CL_DEVICE_MAX_WORK_ITEM_SIZES: ");
+    for (size_t i = 0; i < maxDimensions; i++) printf("%zu ", maxDimensionsValues[i]);
+    printf("\n\n");
+
+    delete[] maxDimensionsValues;
+  }
 
   cl_int contextResult;
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &contextResult);
@@ -166,8 +171,13 @@ void OCL_SDF::updateCirclesBuffer(const std::vector<sf::CircleShape>& circles) {
     cl_float2 clPos;
     cl_float3 clCol;
 
-    sf::Vector2f pos = circles[i].getPosition();
-    sf::Color col = circles[i].getFillColor();
+    const sf::CircleShape& circle = circles[i];
+    float radius = circle.getRadius();
+    sf::Vector2f pos = circle.getPosition();
+    sf::Vector2f origin = circle.getOrigin();
+    pos.x += radius - origin.x;
+    pos.y += radius - origin.y;
+    sf::Color col = circle.getFillColor();
 
     clPos = {{pos.x, pos.y}};
 
@@ -175,7 +185,7 @@ void OCL_SDF::updateCirclesBuffer(const std::vector<sf::CircleShape>& circles) {
     clCol.y = col.g / 255.f;
     clCol.z = col.b / 255.f;
 
-    hostCircles[i] = {clPos, circles[i].getRadius(), clCol};
+    hostCircles[i] = {clPos, radius, clCol};
   }
 
   [[maybe_unused]]
@@ -192,9 +202,11 @@ void OCL_SDF::updateRectsBuffer(const std::vector<sf::RectangleShape>& rects) {
     cl_float2 clCenterGlobal;
     cl_float3 clCol;
 
-    sf::Vector2f sizeFromCenter = rects[i].getGeometricCenter();
-    sf::Vector2f centerGlobal = rects[i].getPosition() + sizeFromCenter;
-    sf::Color col = rects[i].getFillColor();
+    const sf::RectangleShape& rect = rects[i];
+    sf::Vector2f origin = rect.getOrigin();
+    sf::Vector2f sizeFromCenter = rect.getGeometricCenter();
+    sf::Vector2f centerGlobal = rect.getPosition() + sizeFromCenter - origin;
+    sf::Color col = rect.getFillColor();
 
     clCenterGlobal = {{centerGlobal.x, centerGlobal.y}};
     clSizeFromCenter = {{sizeFromCenter.x, sizeFromCenter.y}};
