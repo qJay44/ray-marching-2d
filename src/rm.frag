@@ -16,7 +16,6 @@ vec3 rayMarch(vec2 pix, vec2 dir) {
   for (int i = 0; i < u_stepsPerRay; i++) {
     dist = texture2D(u_sdfTexture, vec2(pix.x, 1.f - pix.y)).r;
     pix += dir * dist;
-    // pix.x /= u_resolution.y / u_resolution.x;
 
     bool offscreen = pix.x > 1.f || pix.x < 0.f || pix.y > 1.f || pix.y < 0.f;
 

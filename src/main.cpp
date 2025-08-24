@@ -82,8 +82,13 @@ int main() {
   // Loop related
   sf::Clock clock;
   sf::Vector2i mousePos;
-  float titleTime = 0.f;
   float dt;
+
+  struct Avg {
+    float ms = 0.f;
+    size_t fps = 0;
+    size_t frameIdx = 0;
+  } avg;
 
   shapesTexture.clear();
   shapesTexture.draw(shapeContainer);
@@ -176,11 +181,18 @@ int main() {
       rmShader.setUniform("u_baseTexture", shapesTexture.getTexture());
     }
 
-    if (titleTime > 0.3f) {
-      window.setTitle(std::format("FPS: {}, {:.2f} ms", static_cast<int>(1.f / dt), dt * 1000.f));
-      titleTime = 0.f;
+    size_t fps = static_cast<size_t>(1.f / dt);
+    float ms = dt * 1000.f;
+
+    if (avg.frameIdx++ < 90) {
+      avg.fps += fps;
+      avg.ms += ms;
+      window.setTitle(std::format("FPS: {}, {:.2f} ms", avg.fps / avg.frameIdx, avg.ms / avg.frameIdx));
     } else {
-      titleTime += dt;
+      avg.fps /= avg.frameIdx;
+      avg.ms /= avg.frameIdx;
+      avg.frameIdx = 1;
+      window.setTitle(std::format("FPS: {}, {:.2f} ms", avg.fps, avg.ms));
     }
 
     // ----- Update objects --------------------------- //

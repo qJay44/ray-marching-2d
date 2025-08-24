@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstdio>
 
+#include "defines.hpp"
+
 Ray::Ray(sf::Vector2f origin, size_t maxMarches)
   : origin(origin), maxMarches(maxMarches) {
   circleBase.setFillColor({30, 30, 30, 40});
@@ -35,7 +37,6 @@ void Ray::march(const u8* sdfPixels) {
   float currentLength = 0.f;
 
   for (size_t i = 0; currentLength < length && i < maxMarches; i++) {
-    // The update function clamps to [0, WIDTH], so its safe to cast to unsigned types
     size_t px = static_cast<size_t>(currentOrigin.x);
     size_t py = static_cast<size_t>(currentOrigin.y);
     size_t pixIdx = (py * WIDTH + px) * 4; // [R, G, B, A, R, G, B, A, ...]

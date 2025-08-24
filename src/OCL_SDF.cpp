@@ -1,12 +1,11 @@
+#include "OCL_SDF.hpp"
+
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <string>
 
-#include "CL/cl.h"
 #include "utils/utils.hpp"
-
-#include "OCL_SDF.hpp"
 
 #define ATTRIBUTE_COUNT 5u
 
@@ -106,7 +105,7 @@ OCL_SDF::OCL_SDF(size_t width, size_t height, bool printInfo)
 
   cl_image_format format;
   format.image_channel_order = CL_RGBA;
-  format.image_channel_data_type = CL_UNORM_INT8;
+  format.image_channel_data_type = CL_UNORM_INT8; // (8-bit per channel) Probably the reason of appearing black outlines
 
   cl_int gpuImageMallocResult;
   #ifdef CL_VERSION_1_2

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "defines.hpp"
+
 struct ShapeContainer : public sf::Drawable {
   std::vector<sf::RectangleShape> rects;
   std::vector<sf::CircleShape> circles;
