@@ -34,10 +34,10 @@ private:
   };
 
   Circle* hostCircles = nullptr;
-  int numCircles = 0;
+  cl_uint numCircles = 0;
 
   Rectangle* hostRectangles = nullptr;
-  int numRects = 0;
+  cl_uint numRects = 0;
 
   cl_device_id device = nullptr;
   size_t maxLocalSize;

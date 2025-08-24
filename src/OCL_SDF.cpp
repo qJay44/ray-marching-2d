@@ -164,10 +164,10 @@ OCL_SDF::~OCL_SDF() {
 }
 
 void OCL_SDF::updateCirclesBuffer(const std::vector<sf::CircleShape>& circles) {
-  if (int(circles.size()) != numCircles || gpuCircles == nullptr)
+  if (circles.size() != numCircles || gpuCircles == nullptr)
     createCirclesBuffer(circles.size());
 
-  for (int i = 0; i < numCircles; i++) {
+  for (size_t i = 0; i < numCircles; i++) {
     cl_float2 clPos;
     cl_float3 clCol;
 
@@ -194,10 +194,10 @@ void OCL_SDF::updateCirclesBuffer(const std::vector<sf::CircleShape>& circles) {
 }
 
 void OCL_SDF::updateRectsBuffer(const std::vector<sf::RectangleShape>& rects) {
-  if (int(rects.size()) != numRects || gpuRectangles == nullptr)
+  if (rects.size() != numRects || gpuRectangles == nullptr)
     createRectsBuffer(rects.size());
 
-  for (int i = 0; i < numRects; i++) {
+  for (size_t i = 0; i < numRects; i++) {
     cl_float2 clSizeFromCenter;
     cl_float2 clCenterGlobal;
     cl_float3 clCol;
@@ -234,10 +234,10 @@ void OCL_SDF::run() {
   cl_int errCode;
 
   errCode = clSetKernelArg(kernel, 1, sizeof(cl_mem), &gpuCircles); assert(errCode == CL_SUCCESS);
-  errCode = clSetKernelArg(kernel, 2, sizeof(cl_int), &numCircles); assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 2, sizeof(cl_uint), &numCircles); assert(errCode == CL_SUCCESS);
 
   errCode = clSetKernelArg(kernel, 3, sizeof(cl_mem), &gpuRectangles); assert(errCode == CL_SUCCESS);
-  errCode = clSetKernelArg(kernel, 4, sizeof(cl_int), &numRects);      assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 4, sizeof(cl_uint), &numRects);      assert(errCode == CL_SUCCESS);
 
   errCode = clEnqueueNDRangeKernel(commandQueue, kernel, 2, nullptr, globalWorkSize, localWorkSize, 0, nullptr, nullptr); assert(errCode == CL_SUCCESS);
   errCode = clEnqueueReadImage(commandQueue, gpuImage, CL_TRUE, origin, region, 0, 0, pixels, 0, nullptr, nullptr);       assert(errCode == CL_SUCCESS);

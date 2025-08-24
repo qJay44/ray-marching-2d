@@ -27,8 +27,8 @@ float signedDstToRectangle(const float2 point, const Rectangle rect) {
 
 __kernel void calcSDF(
   __write_only image2d_t img,
-  __global const Circle* circles, const int numCircles,
-  __global const Rectangle* rectangles, const int numRectangles
+  __global const Circle* circles, const uint numCircles,
+  __global const Rectangle* rectangles, const uint numRectangles
 ) {
   int width = get_image_width(img);
   // int height = get_image_height(img);

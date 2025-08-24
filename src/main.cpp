@@ -10,7 +10,7 @@ int main() {
   // Assuming the executable is launching from its own directory
   _chdir("../../../src");
 
-  // srand(static_cast<unsigned int>(time(nullptr)));
+  srand(static_cast<unsigned int>(time(nullptr)));
   sf::RenderWindow window = sf::RenderWindow(sf::VideoMode({WIDTH, HEIGHT}), "CMake SFML Project");
   window.setFramerateLimit(144);
 
@@ -23,33 +23,58 @@ int main() {
   int drawMode = 0;
   int numCircles = 3;
   int numRects = 3;
+  int numWalls = 2;
   ShapeContainer shapeContainer;
-  shapeContainer.generate(numCircles, numRects);
-
-  sf::RectangleShape wall({100, 700});
-  wall.setPosition({500, 500});
-  wall.setFillColor(sf::Color::Black);
-  shapeContainer.rects.push_back(wall);
+  shapeContainer.generate(numCircles, numRects, numWalls);
 
   // OpenCL related
   OCL_SDF ocl(WIDTH, HEIGHT);
   sf::Texture sdfTexture({WIDTH, HEIGHT});
   sf::Sprite sdfSprite(sdfTexture);
 
-  // Ray march shader
+  // ----- Ray march shader ------------------------- //
+
   sf::Shader rmShader(fspath("rm.frag"), sf::Shader::Type::Fragment);
   sf::RectangleShape rmRect({WIDTH, HEIGHT});
   sf::RenderTexture shapesTexture({WIDTH, HEIGHT});
   sf::RenderTexture previousFrame({WIDTH, HEIGHT});
   sf::RenderTexture currentFrame({WIDTH, HEIGHT});
   sf::Texture blueNoise("res/tex/LDR_LLL1_0.png");
+
+  int raysPerPixel = 32;
+  int stepsPerRay = 32;
+  float epsilon = 0.001f;
   rmShader.setUniform("u_baseTexture", shapesTexture.getTexture());
   rmShader.setUniform("u_sdfTexture", sdfTexture);
   rmShader.setUniform("u_blueNoiseTexture", blueNoise);
   rmShader.setUniform("u_resolution", sf::Glsl::Vec2{WIDTH, HEIGHT});
-  rmShader.setUniform("u_raysPerPixel", 32);
-  rmShader.setUniform("u_stepsPerRay", 32);
-  rmShader.setUniform("u_epsilon", 0.001f);
+  rmShader.setUniform("u_raysPerPixel", raysPerPixel);
+  rmShader.setUniform("u_stepsPerRay", stepsPerRay);
+  rmShader.setUniform("u_epsilon", epsilon);
+
+  // ----- Texts ------------------------------------ //
+
+  sf::Text baseText(font, "baseText", 12);
+  baseText.setOutlineThickness(1.f);
+  baseText.setOutlineColor(sf::Color::Black);
+
+  sf::Vector2f textOffset = baseText.getGlobalBounds().size;
+  textOffset.x = 0.f;
+  textOffset.y += 2.f;
+
+  sf::Text raysPerPixelText(baseText);
+  raysPerPixelText.setPosition(sf::Vector2f{5.f, 5.f});
+  raysPerPixelText.setString(std::format("raysPerPixel = {}", raysPerPixel));
+
+  sf::Text stepsPerRayText(baseText);
+  stepsPerRayText.setPosition(raysPerPixelText.getPosition() + textOffset);
+  stepsPerRayText.setString(std::format("stepsPerRay = {}", stepsPerRay));
+
+  sf::Text epsilonText(baseText);
+  epsilonText.setPosition(stepsPerRayText.getPosition() + textOffset);
+  epsilonText.setString(std::format("epsilon = {}", epsilon));
+
+  // ------------------------------------------------ //
 
   // Single ray
   Ray ray(sf::Vector2f{20.f, 20.f}, 64);
@@ -76,9 +101,13 @@ int main() {
             window.close();
             break;
           case sf::Keyboard::Scancode::R:
-            shapeContainer.generate(numCircles, numRects);
+            shapeContainer.generate(numCircles, numRects, numWalls);
+            shapesTexture.clear();
+            shapesTexture.draw(shapeContainer);
+            shapesTexture.display();
+            rmShader.setUniform("u_baseTexture", shapesTexture.getTexture());
             break;
-          case sf::Keyboard::Scancode::S:
+          case sf::Keyboard::Scancode::C:
             shapeContainer.showShapes = !shapeContainer.showShapes;
             break;
           case sf::Keyboard::Scancode::Num1:
@@ -89,6 +118,26 @@ int main() {
             break;
           case sf::Keyboard::Scancode::Num3:
             drawMode = 2;
+            break;
+          case sf::Keyboard::Scancode::W:
+            raysPerPixel = std::min(raysPerPixel * 2, 1024);
+            rmShader.setUniform("u_raysPerPixel", raysPerPixel);
+            raysPerPixelText.setString(std::format("raysPerPixel = {}", raysPerPixel));
+            break;
+          case sf::Keyboard::Scancode::S:
+            raysPerPixel = std::max(raysPerPixel / 2, 1);
+            rmShader.setUniform("u_raysPerPixel", raysPerPixel);
+            raysPerPixelText.setString(std::format("raysPerPixel = {}", raysPerPixel));
+            break;
+          case sf::Keyboard::Scancode::A:
+            stepsPerRay = std::max(stepsPerRay / 2, 1);
+            rmShader.setUniform("u_stepsPerRay", stepsPerRay);
+            stepsPerRayText.setString(std::format("stepsPerRay = {}", stepsPerRay));
+            break;
+          case sf::Keyboard::Scancode::D:
+            stepsPerRay = std::min(stepsPerRay * 2, 1024);
+            rmShader.setUniform("u_stepsPerRay", stepsPerRay);
+            stepsPerRayText.setString(std::format("stepsPerRay = {}", stepsPerRay));
             break;
           default:
             break;
@@ -101,6 +150,14 @@ int main() {
           default:
             break;
         }
+      } else if (const auto* scrolled = event->getIf<sf::Event::MouseWheelScrolled>()) {
+        if (scrolled->delta < 0.f)
+          epsilon *= 0.1f;
+        else
+          epsilon *= 10.f;
+
+        rmShader.setUniform("u_epsilon", epsilon);
+        epsilonText.setString(std::format("epsilon = {}", epsilon));
       }
     }
 
@@ -167,6 +224,9 @@ int main() {
         const sf::Sprite currentFrameSprite(currentFrame.getTexture());
 
         window.draw(currentFrameSprite);
+        window.draw(raysPerPixelText);
+        window.draw(stepsPerRayText);
+        window.draw(epsilonText);
         window.display();
 
         previousFrame.clear();
