@@ -12,14 +12,21 @@ project(MyProject VERSION 1.0)
 find_package(SFML 3 REQUIRED COMPONENTS System Window Graphics)
 find_package(OpenCL REQUIRED)
 
-file(GLOB_RECURSE SOURCES
-  ${PROJECT_SOURCE_DIR}/src/*.cpp
-  ${UTILS_PATH}/src/*.cpp
-)
+# ===== My utils ================================================== #
 
-list(REMOVE_ITEM SOURCES ${UTILS_PATH}/src/loadTif.cpp)
-list(REMOVE_ITEM SOURCES ${UTILS_PATH}/src/saveTif.cpp)
+file(GLOB_RECURSE UTILS_SOURCES ${UTILS_PATH}/src/*.cpp)
 
+# Remove TIFF from sources
+list(REMOVE_ITEM UTILS_SOURCES ${UTILS_PATH}/src/loadTif.cpp)
+list(REMOVE_ITEM UTILS_SOURCES ${UTILS_PATH}/src/saveTif.cpp)
+
+add_library(Utils STATIC ${UTILS_SOURCES})
+
+target_include_directories(Utils PUBLIC ${UTILS_PATH}/include)
+
+# ===== Main ====================================================== #
+
+file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
@@ -30,6 +37,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/src/pch.hpp)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE SFML::System SFML::Window SFML::Graphics OpenCL::OpenCL)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  SFML::System
+  SFML::Window
+  SFML::Graphics
+  OpenCL::OpenCL
+  Utils
+)
+
 target_compile_definitions(${PROJECT_NAME} PRIVATE CL_TARGET_OPENCL_VERSION=300)
 
