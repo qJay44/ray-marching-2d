@@ -1,3 +1,4 @@
+// NOTE: Add padding for better alignment (16-byte)?
 typedef struct {
   float2 center;
   float radius;
@@ -31,10 +32,14 @@ __kernel void calcSDF(
   __global const Rectangle* rectangles, const uint numRectangles
 ) {
   int width = get_image_width(img);
-  // int height = get_image_height(img);
+  int height = get_image_height(img);
 
   int x = get_global_id(0);
   int y = get_global_id(1);
+
+  if (x >= width || y >= height)
+    return;
+
   float2 point = (float2)(x, y);
 
   float minDst = FLT_MAX;

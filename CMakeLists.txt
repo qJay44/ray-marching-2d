@@ -9,7 +9,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/Run)
 
 project(MyProject VERSION 1.0)
 
-find_package(SFML 3 REQUIRED COMPONENTS System Window Graphics PATHS ${SFML_PATH})
+find_package(SFML 3 REQUIRED COMPONENTS System Window Graphics)
+find_package(OpenCL REQUIRED)
 
 file(GLOB_RECURSE SOURCES
   ${PROJECT_SOURCE_DIR}/src/*.cpp
@@ -23,12 +24,12 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 
-target_include_directories(${PROJECT_NAME} PUBLIC
-  ${OCL_PATH}/include
+target_include_directories(${PROJECT_NAME} PRIVATE
   ${UTILS_PATH}/include
 )
 
-target_precompile_headers(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/src/pch.hpp)
+target_precompile_headers(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/src/pch.hpp)
 
-target_link_directories(${PROJECT_NAME} PUBLIC ${OCL_PATH}/lib/x86_64)
-target_link_libraries(${PROJECT_NAME} PRIVATE SFML::System SFML::Window SFML::Graphics OpenCL)
+target_link_libraries(${PROJECT_NAME} PRIVATE SFML::System SFML::Window SFML::Graphics OpenCL::OpenCL)
+target_compile_definitions(${PROJECT_NAME} PRIVATE CL_TARGET_OPENCL_VERSION=300)
+

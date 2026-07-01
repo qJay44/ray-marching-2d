@@ -1,6 +1,5 @@
 #include <cstdlib>
 #include <format>
-#include <direct.h>
 
 #include "Ray.hpp"
 #include "ShapeContainer.hpp"
@@ -8,13 +7,13 @@
 
 int main() {
   // Assuming the executable is launching from its own directory
-  _chdir("../../../src");
+  CHDIR("../../..");
 
   srand(static_cast<unsigned int>(time(nullptr)));
-  sf::RenderWindow window = sf::RenderWindow(sf::VideoMode({WIDTH, HEIGHT}), "CMake SFML Project");
+  sf::RenderWindow window = sf::RenderWindow(sf::VideoMode({WIDTH, HEIGHT}), "MyProgram");
   window.setFramerateLimit(144);
 
-  std::string fontPath = "res/fonts/monocraft/Monocraft.ttf";
+  std::string fontPath = "res/fonts/Minecraft.otf";
   sf::Font font;
   if (!font.openFromFile(fontPath))
     error("Can't open font [{}]", fontPath);
@@ -34,12 +33,12 @@ int main() {
 
   // ----- Ray march shader ------------------------- //
 
-  sf::Shader rmShader(fspath("rm.frag"), sf::Shader::Type::Fragment);
+  sf::Shader rmShader(fspath("src/rm.frag"), sf::Shader::Type::Fragment);
   sf::RectangleShape rmRect({WIDTH, HEIGHT});
   sf::RenderTexture shapesTexture({WIDTH, HEIGHT});
   sf::RenderTexture previousFrame({WIDTH, HEIGHT});
   sf::RenderTexture currentFrame({WIDTH, HEIGHT});
-  sf::Texture blueNoise("res/tex/LDR_LLL1_0.png");
+  sf::Texture blueNoise("res/tex/noise/LDR_LLL1_0.png");
 
   int raysPerPixel = 32;
   int stepsPerRay = 32;
@@ -187,17 +186,15 @@ int main() {
     if (avg.frameIdx++ < 90) {
       avg.fps += fps;
       avg.ms += ms;
-      window.setTitle(std::format("FPS: {}, {:.2f} ms", avg.fps / avg.frameIdx, avg.ms / avg.frameIdx));
     } else {
       avg.fps /= avg.frameIdx;
       avg.ms /= avg.frameIdx;
       avg.frameIdx = 1;
-      window.setTitle(std::format("FPS: {}, {:.2f} ms", avg.fps, avg.ms));
     }
 
     // ----- Update objects --------------------------- //
 
-    // TODO: Update only if atleast one shape were changed (TODO: Update only the updated shape?)
+    // TODO: Update only if at least one shape were changed (TODO: Update only the updated shape?)
     ocl.updateCirclesBuffer(shapeContainer.circles);
     ocl.updateRectsBuffer(shapeContainer.rects);
     ocl.run();

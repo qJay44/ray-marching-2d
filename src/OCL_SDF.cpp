@@ -107,6 +107,7 @@ OCL_SDF::OCL_SDF(size_t width, size_t height, bool printInfo)
   format.image_channel_order = CL_RGBA;
   format.image_channel_data_type = CL_UNORM_INT8; // (8-bit per channel) Probably the reason of appearing black outlines
 
+  // NOTE: Would be better to share the texture directly using OpenCL/OpenGL interoperability
   cl_int gpuImageMallocResult;
   #ifdef CL_VERSION_1_2
     cl_image_desc imageDesc;
@@ -121,7 +122,7 @@ OCL_SDF::OCL_SDF(size_t width, size_t height, bool printInfo)
   assert(gpuImageMallocResult == CL_SUCCESS);
 
   cl_int programResult;
-  std::string clFile = readFile("SDF.cl");
+  std::string clFile = readFile("res/cl/SDF.cl");
   const char* programSource = clFile.c_str();
   size_t programSourceLength = 0;
   program = clCreateProgramWithSource(context, 1, &programSource, &programSourceLength, &programResult);
@@ -226,17 +227,20 @@ void OCL_SDF::run() {
   constexpr size_t origin[3] = {0, 0, 0};
   const size_t region[3] = {width, height, 1};
 
-  const size_t globalWorkSize[2] = {width, height};
-  const size_t localWorkSize[2] = {16, 16};
+  constexpr size_t localWorkSize[2] = {16, 16};
+  const size_t globalWorkSize[2] = {
+    (width  + (localWorkSize[0] - 1) / localWorkSize[0]) * localWorkSize[0],
+    (height + (localWorkSize[1] - 1) / localWorkSize[1]) * localWorkSize[1]
+  };
 
   [[maybe_unused]]
   cl_int errCode;
 
-  errCode = clSetKernelArg(kernel, 1, sizeof(cl_mem), &gpuCircles); assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 1, sizeof(cl_mem), &gpuCircles);  assert(errCode == CL_SUCCESS);
   errCode = clSetKernelArg(kernel, 2, sizeof(cl_uint), &numCircles); assert(errCode == CL_SUCCESS);
 
   errCode = clSetKernelArg(kernel, 3, sizeof(cl_mem), &gpuRectangles); assert(errCode == CL_SUCCESS);
-  errCode = clSetKernelArg(kernel, 4, sizeof(cl_uint), &numRects);      assert(errCode == CL_SUCCESS);
+  errCode = clSetKernelArg(kernel, 4, sizeof(cl_uint), &numRects);     assert(errCode == CL_SUCCESS);
 
   errCode = clEnqueueNDRangeKernel(commandQueue, kernel, 2, nullptr, globalWorkSize, localWorkSize, 0, nullptr, nullptr); assert(errCode == CL_SUCCESS);
   errCode = clEnqueueReadImage(commandQueue, gpuImage, CL_TRUE, origin, region, 0, 0, pixels, 0, nullptr, nullptr);       assert(errCode == CL_SUCCESS);
